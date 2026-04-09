@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>오운완 프로젝트 - 운동 & 식단 일지</title>
+    <style>
+        :root { --primary: #2ecc71; --bg: #f4f7f6; --dark: #2c3e50; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; color: var(--dark); }
+        .container { max-width: 900px; width: 100%; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        .guide-box { background: #e8f5e9; padding: 15px; border-radius: 8px; font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px; border-left: 5px solid var(--primary); }
+        .teacher-note { background: #fff3e0; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; border: 1px dashed #ff9800; }
+
+        input, textarea, select { padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
+        
+        .section-title { font-weight: bold; margin: 20px 0 10px; border-bottom: 2px solid var(--primary); display: inline-block; padding-bottom: 5px; }
+        .btn { padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; transition: 0.3s; }
+        .btn:hover { background: #27ae60; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.85rem; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: var(--primary); color: white; text-align: center; }
+        .history-card { border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-top: 10px; background: #fff; }
+        .feedback-text { color: #e67e22; font-weight: bold; font-size: 0.9rem; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="login-section">
+        <h2>🏋️ 오운완: 운동 & 식단 일지</h2>
+        <div class="guide-box">
+            <strong>[필독] 처음 사용 시 주의사항</strong><br>
+            1. 로그인 후 정보를 입력하면 나만의 기록이 클라우드에 저장됩니다.<br>
+            2. <strong>arse1886@gclass.ice.go.kr</strong> 선생님께 공유를 설정하면 피드백을 받을 수 있어요!
+        </div>
+        <input type="text" id="user-id" placeholder="학번 (예: 10101)">
+        <input type="text" id="user-name" placeholder="이름 (예: 김성훈)">
+        <input type="password" id="user-pw" placeholder="비밀번호">
+        <button class="btn" onclick="login()">로그인 및 기록 보기</button>
+    </div>
+
+    <div id="main-content" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items: center;">
+            <h3>📊 <span id="display-name"></span> 학생의 성장 일지</h3>
+            <button onclick="location.reload()" style="padding: 5px 10px; cursor:pointer;">로그아웃</button>
+        </div>
+
+        <div class="teacher-note">
+            💡 <strong>선생님 한마디:</strong> 쌤이 평가 칸에 피드백 남길 수 있음!! (음성 입력 예정이라 오타가 있을 수 있어요 ㅎㅎ) 피드백 원하면 꼭 말하기!
+        </div>
+
+        <div class="section-title">📅 오늘의 기록 입력</div>
+        <div class="input-grid">
+            <div><label>측정날짜</label><input type="date" id="date"></div>
+            <div><label>목표 작성</label><input type="text" id="goal" placeholder="예: 50kg까지 감량하기!!"></div>
+        </div>
+
+        <div class="section-title">💪 운동 기록</div>
+        <div class="input-grid">
+            <div><label>운동시간(분)</label><input type="number" id="ex_time" placeholder="50"></div>
+            <div>
+                <label>운동강도</label>
+                <select id="ex_level">
+                    <option value="매우 힘듦">매우 힘듦</option>
+                    <option value="힘듦">힘듦</option>
+                    <option value="보통">보통</option>
+                    <option value="가벼움">가벼움</option>
+                </select>
+            </div>
+        </div>
+        <textarea id="ex_detail" rows="3" placeholder="근력/유산소/스트레칭 상세 내용 (예: 스쿼트 20개 3세트, 운동장 5바퀴)"></textarea>
+
+        <div class="section-title">🥗 식단 기록</div>
+        <div class="input-grid">
+            <div><label>아침</label><input type="text" id="meal_br" placeholder="콘푸레이크"></div>
+            <div><label>점심</label><input type="text" id="meal_lu" placeholder="급식 (적정량)"></div>
+            <div><label>저녁</label><input type="text" id="meal_di" placeholder="샐러드 + 닭가슴살"></div>
+            <div>
+                <label>오늘의 당 체크(탄산/버블티)</label>
+                <select id="sugar_check">
+                    <option value="X">X (안 마심)</option>
+                    <option value="O">O (마셨음)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section-title">📝 오늘의 일지 / 소감</div>
+        <textarea id="daily_note" rows="3" placeholder="오늘은 힘들었지만 그래도 이겨냈다. 수업에서 호흡법을 배웠다."></textarea>
+
+        <button class="btn" id="saveBtn" onclick="saveToCloud()">오늘의 일지 저장하기</button>
+
+        <h4 style="margin-top:40px; border-left: 5px solid var(--primary); padding-left: 10px;">나의 누적 일지 및 쌤 피드백</h4>
+        <div id="history-list">
+            </div>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqZCLr12lBqru2MxcCpyBfrynLIcL4z98StFKkvowf6SZc-DQwnQIc_FMCet1rCgMwMw/exec";
+    let userData = { id: '', name: '', pw: '' };
+
+    // 오늘 날짜 설정
+    document.getElementById('date').value = new Date().toISOString().substring(0, 10);
+
+    async function login() {
+        const id = document.getElementById('user-id').value;
+        const name = document.getElementById('user-name').value;
+        const pw = document.getElementById('user-pw').value;
+        if(!id || !name || !pw) return alert("학번, 이름, 비밀번호를 입력하세요.");
+        
+        userData = { id, name, pw };
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('display-name').innerText = name;
+        
+        await fetchRecords();
+    }
+
+    async function fetchRecords() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = `<p style="text-align:center;">일지를 불러오는 중...</p>`;
+        
+        try {
+            const res = await fetch(SCRIPT_URL);
+            const data = await res.json();
+            const myData = data.filter(r => r[0].toString() === userData.id.toString() && r[1] === userData.name && r[2].toString() === userData.pw.toString())
+                               .sort((a, b) => new Date(b[3]) - new Date(a[3])); // 최신순
+            
+            renderHistory(myData);
+        } catch(e) {
+            list.innerHTML = `<p>기록을 불러오지 못했습니다. 앱 스크립트 연결을 확인하세요.</p>`;
+        }
+    }
+
+function renderHistory(data) {
+    const list = document.getElementById('history-list');
+    if(data.length === 0) {
+        list.innerHTML = `<p>작성된 일지가 없습니다. 첫 일지를 작성해보세요!</p>`;
+        return;
+    }
+
+    list.innerHTML = data.map(row => {
+        // 날짜 변환 (D열: 3번)
+        const d = new Date(row[3]);
+        const dateStr = d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+        
+        return `
+            <div class="history-card">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>📅 ${dateStr} 일지</strong>
+                    <span style="color:#2ecc71;">🔥 ${row[6]}분 (${row[7]})</span>
+                </div>
+                <div style="margin-top:10px; font-size:0.9rem;">
+                    <strong>목표:</strong> ${row[4] || '-'}<br>
+                    <strong>운동내용:</strong> ${row[8] || '기록 없음'}<br>
+                    <strong>식단:</strong> 아침(${row[9]}), 점심(${row[10]}), 저녁(${row[11]}) | 당체크: ${row[12]}<br>
+                    <strong>일기:</strong> ${row[5] || '-'}
+                </div>
+                <div class="feedback-text">
+                    👨‍🏫 쌤 피드백: <span style="color:#e67e22;">${row[13] || '아직 피드백이 없어요. 열심히 합시다!'}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+    async function saveToCloud() {
+        const btn = document.getElementById('saveBtn');
+        btn.innerText = "저장 중..."; btn.disabled = true;
+
+        const payload = {
+            ...userData,
+            date: document.getElementById('date').value,
+            goal: document.getElementById('goal').value,
+            note: document.getElementById('daily_note').value,
+            ex_time: document.getElementById('ex_time').value,
+            ex_level: document.getElementById('ex_level').value,
+            ex_detail: document.getElementById('ex_detail').value,
+            meal_br: document.getElementById('meal_br').value,
+            meal_lu: document.getElementById('meal_lu').value,
+            meal_di: document.getElementById('meal_di').value,
+            sugar: document.getElementById('sugar_check').value
+        };
+
+        try {
+            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            alert("일지가 성공적으로 저장되었습니다!");
+            await fetchRecords();
+        } catch(e) {
+            alert("저장 실패");
+        } finally {
+            btn.innerText = "오늘의 일지 저장하기"; btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
