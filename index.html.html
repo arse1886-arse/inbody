@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>인바디 클라우드 - 자동 로딩 및 그래프</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #4a90e2; --bg: #f8f9fa; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .container { max-width: 1000px; width: 100%; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; }
+        .btn { padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
+        .btn:disabled { background: #ccc; }
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 20px; }
+        .chart-container { margin-top: 40px; padding: 20px; background: #fff; border: 1px solid #eee; border-radius: 12px; height: 400px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 0.85rem; }
+        th { background: #4a90e2; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="login-section">
+        <h2>🌐 인바디 클라우드 로그인</h2>
+        <p>로그인하면 이전 기록과 그래프를 즉시 확인할 수 있습니다.</p>
+        <input type="text" id="user-id" placeholder="학번"><br>
+        <input type="text" id="user-name" placeholder="이름" style="margin:10px 0;"><br>
+        <input type="password" id="user-pw" placeholder="비밀번호"><br>
+        <button class="btn" onclick="login()">기록 불러오기 및 접속</button>
+    </div>
+
+    <div id="main-content" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items: center;">
+            <h3>📊 <span id="display-name"></span> 학생 기록 관리</h3>
+            <button onclick="location.reload()" style="padding: 5px 10px; cursor:pointer;">로그아웃</button>
+        </div>
+
+        <div class="input-grid">
+            <div><label style="font-size:0.8rem;">측정날짜</label><input type="date" id="date"></div>
+            <div><label style="font-size:0.8rem;">신장(cm)</label><input type="number" id="height"></div>
+            <div><label style="font-size:0.8rem;">체중(kg)</label><input type="number" id="weight"></div>
+            <div><label style="font-size:0.8rem;">체지방량(kg)</label><input type="number" id="fat_kg"></div>
+            <div><label style="font-size:0.8rem;">골격근량(kg)</label><input type="number" id="muscle"></div>
+            <div><label style="font-size:0.8rem;">체수분(L)</label><input type="number" id="water"></div>
+            <div><label style="font-size:0.8rem;">단백질(kg)</label><input type="number" id="protein"></div>
+            <div><label style="font-size:0.8rem;">무기질(kg)</label><input type="number" id="mineral"></div>
+        </div>
+
+        <button class="btn" id="saveBtn" onclick="saveToCloud()">새 기록 추가하기</button>
+
+        <div class="chart-container">
+            <canvas id="inbodyChart"></canvas>
+        </div>
+
+        <h4 style="margin-top:40px; border-left: 5px solid var(--primary); padding-left: 10px;">나의 누적 기록 목록</h4>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>측정 날짜</th><th>BMI</th><th>체지방률</th><th>체중</th><th>근육량</th><th>체지방량</th>
+                    </tr>
+                </thead>
+                <tbody id="data-list"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 본인의 앱 스크립트 URL을 여기에 넣으세요
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-okn9O5PYBeuLTX9OT5bBANVQMAjDC7gT6BVzDKb-WofcJfRO3mELNROobB4gqzbQ/exec";
+    let userData = { id: '', name: '', pw: '' };
+    let myChart = null;
+
+    // 오늘 날짜 기본 설정
+    document.getElementById('date').value = new Date().toISOString().substring(0, 10);
+
+    async function login() {
+        const id = document.getElementById('user-id').value;
+        const name = document.getElementById('user-name').value;
+        const pw = document.getElementById('user-pw').value;
+        if(!id || !name || !pw) return alert("정보를 모두 입력하세요.");
+        
+        userData = { id, name, pw };
+        
+        // 화면 전환
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('display-name').innerText = name;
+        
+        // ⭐ 접속하자마자 데이터 불러오기
+        await fetchRecords();
+    }
+
+    async function fetchRecords() {
+        const list = document.getElementById('data-list');
+        list.innerHTML = `<tr><td colspan="6">데이터를 불러오는 중...</td></tr>`;
+        
+        try {
+            const res = await fetch(SCRIPT_URL);
+            const data = await res.json();
+            
+            // 본인 데이터만 필터링 및 날짜순 정렬
+            const myData = data.filter(r => 
+                r[0].toString() === userData.id.toString() && 
+                r[1].toString() === userData.name.toString() && 
+                r[2].toString() === userData.pw.toString()
+            ).sort((a, b) => new Date(a[3]) - new Date(b[3]));
+            
+            renderTable(myData);
+            updateChart(myData);
+        } catch(e) {
+            list.innerHTML = `<tr><td colspan="6">기록을 불러오지 못했습니다.</td></tr>`;
+        }
+    }
+
+    function renderTable(data) {
+        const list = document.getElementById('data-list');
+        if(data.length === 0) {
+            list.innerHTML = `<tr><td colspan="6">기존 기록이 없습니다.</td></tr>`;
+            return;
+        }
+        list.innerHTML = [...data].reverse().map(row => {
+            const d = new Date(row[3]);
+            const dateStr = d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+            return `
+                <tr>
+                    <td style="font-weight:bold;">${dateStr}</td>
+                    <td>${row[11]}</td><td>${row[12]}%</td>
+                    <td>${row[5]}kg</td><td>${row[7]}kg</td><td>${row[6]}kg</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function updateChart(data) {
+        const ctx = document.getElementById('inbodyChart').getContext('2d');
+        const labels = data.map(r => {
+            const d = new Date(r[3]);
+            return (d.getMonth()+1) + "/" + d.getDate();
+        });
+
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'BMI', data: data.map(r => r[11]), borderColor: '#4a90e2', tension: 0.2 },
+                    { label: '체지방률(%)', data: data.map(r => r[12]), borderColor: '#e67e22', tension: 0.2 },
+                    { label: '근육량(kg)', data: data.map(r => r[7]), borderColor: '#2ecc71', tension: 0.2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: false } }
+            }
+        });
+    }
+
+    async function saveToCloud() {
+        const btn = document.getElementById('saveBtn');
+        const dateInput = document.getElementById('date').value;
+        const h = document.getElementById('height').value;
+        const w = document.getElementById('weight').value;
+        const f = document.getElementById('fat_kg').value || 0;
+
+        if(!dateInput || !h || !w) return alert("날짜, 신장, 체중은 필수입니다.");
+
+        btn.innerText = "저장 중..."; btn.disabled = true;
+
+        const payload = {
+            ...userData,
+            date: dateInput,
+            height: h, weight: w, fat_kg: f,
+            muscle: document.getElementById('muscle').value || 0,
+            water: document.getElementById('water').value || 0,
+            protein: document.getElementById('protein').value || 0,
+            mineral: document.getElementById('mineral').value || 0,
+            bmi: (w/((h/100)*(h/100))).toFixed(1),
+            pbf: f > 0 ? ((f/w)*100).toFixed(1) : "0"
+        };
+
+        try {
+            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            alert("저장되었습니다!");
+            await fetchRecords(); // 저장 후 즉시 목록과 그래프 갱신
+        } catch(e) {
+            alert("저장 실패");
+        } finally {
+            btn.innerText = "새 기록 추가하기"; btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
